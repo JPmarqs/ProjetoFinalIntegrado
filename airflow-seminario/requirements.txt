@@ -1,0 +1,2 @@
+apache-airflow-providers-amazon==9.32.0
+gdown==6.0.0

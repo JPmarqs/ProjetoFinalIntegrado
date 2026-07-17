@@ -1,0 +1,31 @@
+# Credenciais e configurações locais
+.env
+
+# Arquivos baixados
+data/*
+!data/.gitkeep
+
+# Logs do Airflow
+logs/*
+!logs/.gitkeep
+
+# Cache Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+terraform/*.tfvars
+terraform/*.tfvars.json
