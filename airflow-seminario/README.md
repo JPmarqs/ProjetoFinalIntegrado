@@ -608,3 +608,132 @@ As próximas etapas planejadas são:
 ## Observação
 
 A configuração apresentada é destinada a ambiente local, acadêmico e de desenvolvimento. Para produção, são necessários controles adicionais de segurança, gerenciamento de segredos, observabilidade, alta disponibilidade e uma estratégia de implantação apropriada.
+
+
+---
+
+## Nova Estrutura
+
+A nova DAG google_drive_zip_csv_mapbox_to_s3.py foi preparada com o fluxo completo:
+
+```
+  Google Drive
+      ↓
+  Download do ZIP
+      ↓
+  Extração do CSV
+      ↓
+  Upload do CSV para o S3
+      ↓
+  Leitura e normalização das coordenadas
+      ↓
+  Remoção de latitude/longitude duplicadas
+      ↓
+  Consulta ao Mapbox
+      ↓
+  Upload das imagens para o S3
+      ↓
+  Relatório de processamento
+```
+
+Novas variaveis de ambiente
+
+``` 
+    # -----------------------------------------------------------------
+    # Mapbox
+    # -----------------------------------------------------------------
+
+    # Não coloque o token diretamente na DAG
+    MAPBOX_ACCESS_TOKEN=COLE_AQUI_SEU_TOKEN
+
+    # Estilo do mapa
+    MAPBOX_STYLE=mapbox/streets-v12
+
+    # Configurações da imagem
+    MAPBOX_ZOOM=17
+    MAPBOX_IMAGE_WIDTH=400
+    MAPBOX_IMAGE_HEIGHT=300
+
+    # Quantidade máxima de requisições por minuto
+    MAPBOX_REQUESTS_PER_MINUTE=300
+
+    # Quantidade máxima de imagens processadas em cada execução
+    MAPBOX_MAX_IMAGES_PER_RUN=500
+
+    # Tentativas máximas para cada coordenada
+    MAPBOX_MAX_ATTEMPTS_PER_COORDINATE=3
+
+    # Timeout da resposta da API
+    MAPBOX_REQUEST_TIMEOUT_SECONDS=30
+
+    # -----------------------------------------------------------------
+    # CSV
+    # -----------------------------------------------------------------
+
+    CSV_LATITUDE_COLUMN=latitude
+    CSV_LONGITUDE_COLUMN=longitude
+
+    COORDINATE_DECIMAL_PLACES=6
+
+    # Deixe vazio para detecção automática
+    CSV_DELIMITER=;
+```
+
+Nova estrutura no S3:
+
+```
+    bucket/
+    ├── raw/
+    │   └── airflow/
+    │       └── acidentes2026_todas_causas_tipos.csv
+    │
+    └── mapbox/
+        ├── static-images/
+        │   ├── lat_m27p084768_lon_m48p606356_a1b2c3d4e5.png
+        │   └── ...
+        │
+        └── reports/
+            └── mapbox_coordinate_processing_report.csv
+```
+
+## Evidências e Resultados
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183806.png" width="400px" alt="Airflow 01">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183737.png" width="400px" alt="Airflow 02">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183501.png" width="400px" alt="Airflow 03">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183520.png" width="400px" alt="Airflow 04">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183608.png" width="400px" alt="Airflow 05">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183011.png" width="400px" alt="Airflow 06">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183111.png" width="400px" alt="AWS S3 01">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183140.png" width="400px" alt="AWS S3 02">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183323.png" width="400px" alt="AWS S3 03">
+</p>
+
+<p align="center">
+  <img src="/evidencias/Captura de tela 2026-07-22 183343.png" width="400px" alt="AWS S3 04">
+</p>
