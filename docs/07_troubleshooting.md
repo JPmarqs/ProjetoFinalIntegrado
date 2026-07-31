@@ -98,6 +98,14 @@ Use autenticação por arquivo RSA, sem senha, e o caminho
 `/keys/snowflake_rsa_key.p8`. Confirme warehouse, database, role e acesso aos
 schemas `MART,ML`.
 
+## Metabase não inicia com `password authentication failed`
+
+O volume PostgreSQL preserva a senha definida na primeira inicialização. Não
+altere `METABASE_DB_PASSWORD` enquanto `metabase-db-volume` existir. Se a senha
+for modificada por engano, restaure o valor anterior ou sincronize a senha do
+usuário no PostgreSQL. Não remova o volume para corrigir o acesso, pois ele
+contém usuários, perguntas e dashboards do Metabase.
+
 ## Dashboard não mostra o treino novo
 
 Confirme que a task `build_analytics_marts` terminou, depois sincronize o schema
