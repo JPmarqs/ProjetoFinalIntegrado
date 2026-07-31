@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: mart_acidentes_resumo
+    description: Base detalhada de acidentes para mapas e filtros do Metabase.
+    columns:
+      - name: cd_bat
+        data_tests:
+          - not_null
+          - unique
+  - name: mart_metricas_modelo
+    description: Historico de execucoes e metricas do modelo.
+    columns:
+      - name: run_id
+        data_tests:
+          - not_null
+          - unique
+  - name: mart_predicoes_modelo
+    description: Predicoes do ultimo treino enriquecidas com localizacao do acidente.
+    columns:
+      - name: cd_bat
+        data_tests:
+          - not_null
+          - unique
+  - name: mart_feature_importance
+    description: Importancia das features do ultimo treino.
+    columns:
+      - name: feature_name
+        data_tests:
+          - not_null
+

@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: stg_sinistros
+    description: Registros da PRF tipados e padronizados a partir da camada RAW.
+    columns:
+      - name: cd_bat
+        description: Identificador do boletim de acidente.
+        data_tests:
+          - not_null
+      - name: id_envolvido
+        description: Identificador da pessoa envolvida no acidente, quando informado pela fonte.
+      - name: data_inversa
+        description: Data do acidente.
+        data_tests:
+          - not_null
+      - name: source_file
+        description: Arquivo S3 que originou o registro.
+        data_tests:
+          - not_null
+      - name: loaded_at
+        description: Momento em que o registro foi carregado no Snowflake.
+        data_tests:
+          - not_null

@@ -1,0 +1,10 @@
+.env
+.env.aws-lab
+keys/*
+!keys/.gitkeep
+data/*
+logs/*
+evidencias/
+__pycache__/
+*.py[cod]
+.pytest_cache/

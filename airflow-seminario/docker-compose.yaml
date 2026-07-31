@@ -52,7 +52,10 @@ x-airflow-common:
   # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.3.0}
   build: .
   env_file:
-    - ${ENV_FILE_PATH:-.env}
+    - path: ${ENV_FILE_PATH:-.env}
+      required: true
+    - path: ${AWS_LAB_ENV_FILE_PATH:-.env.aws-lab}
+      required: false
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -60,7 +63,7 @@ x-airflow-common:
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
-    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY:-}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
@@ -76,23 +79,35 @@ x-airflow-common:
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
-    # configuracoes AWS
-    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-    AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
-    AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+    # A configuracao permanente vem de .env; as tres credenciais temporarias
+    # do laboratorio sao acrescentadas por .env.aws-lab.
 
     S3_BUCKET_NAME: ${S3_BUCKET_NAME}
     S3_PREFIX: ${S3_PREFIX:-raw/airflow}
 
     GOOGLE_DRIVE_FILE_ID: ${GOOGLE_DRIVE_FILE_ID}
-    SOURCE_FILENAME: ${SOURCE_FILENAME:-arquivo_drive.bin}
+    SOURCE_FILENAME: ${SOURCE_FILENAME:-acidentes2026_todas_causas_tipos.zip}
+
+    # Snowflake e dbt
+    SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT:-MINHA_ORGANIZACAO-MINHA_CONTA}
+    SNOWFLAKE_USER: ${SNOWFLAKE_USER:-PFI_AIRFLOW}
+    SNOWFLAKE_ROLE: ${SNOWFLAKE_ROLE:-PFI_PIPELINE_ROLE}
+    SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE:-PFI_WH}
+    SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE:-PROJETO_FINAL_IA}
+    SNOWFLAKE_SCHEMA: ${SNOWFLAKE_SCHEMA:-STAGING}
+    SNOWFLAKE_PRIVATE_KEY_PATH: ${SNOWFLAKE_PRIVATE_KEY_PATH:-/opt/airflow/keys/snowflake_rsa_key.p8}
+    DBT_PROFILES_DIR: ${DBT_PROFILES_DIR:-/opt/airflow/dbt}
+    AIRFLOW_CONN_SNOWFLAKE_DEFAULT: >-
+      {"conn_type":"snowflake","login":"${SNOWFLAKE_USER:-PFI_AIRFLOW}","schema":"${SNOWFLAKE_SCHEMA:-STAGING}","extra":{"account":"${SNOWFLAKE_ACCOUNT:-MINHA_ORGANIZACAO-MINHA_CONTA}","database":"${SNOWFLAKE_DATABASE:-PROJETO_FINAL_IA}","warehouse":"${SNOWFLAKE_WAREHOUSE:-PFI_WH}","role":"${SNOWFLAKE_ROLE:-PFI_PIPELINE_ROLE}","private_key_file":"${SNOWFLAKE_PRIVATE_KEY_PATH:-/opt/airflow/keys/snowflake_rsa_key.p8}"}}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
+    - ${AIRFLOW_PROJ_DIR:-.}/keys:/opt/airflow/keys:ro
+    - ${AIRFLOW_PROJ_DIR:-.}/../data-dbt:/opt/airflow/dbt
+    - ${AIRFLOW_PROJ_DIR:-.}/../model:/opt/airflow/model
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -102,6 +117,46 @@ x-airflow-common:
       condition: service_healthy
 
 services:
+  metabase-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${METABASE_DB_USER:-metabase}
+      POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD:-metabase_local}
+      POSTGRES_DB: ${METABASE_DB_NAME:-metabase}
+    volumes:
+      - metabase-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${METABASE_DB_USER:-metabase}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: always
+
+  metabase:
+    image: metabase/metabase:v0.61.2
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ${METABASE_DB_NAME:-metabase}
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${METABASE_DB_USER:-metabase}
+      MB_DB_PASS: ${METABASE_DB_PASSWORD:-metabase_local}
+      MB_DB_HOST: metabase-postgres
+      JAVA_TIMEZONE: America/Sao_Paulo
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}/keys:/keys:ro
+    depends_on:
+      metabase-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: always
+
   postgres:
     image: postgres:16
     environment:
@@ -347,3 +402,4 @@ services:
 
 volumes:
   postgres-db-volume:
+  metabase-db-volume:

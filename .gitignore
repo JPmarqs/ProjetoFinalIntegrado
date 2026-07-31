@@ -1,0 +1,18 @@
+# Credenciais e configuração local
+airflow-seminario/.env
+airflow-seminario/.env.aws-lab
+airflow-seminario/keys/*
+!airflow-seminario/keys/.gitkeep
+
+# Artefatos locais
+airflow-seminario/logs/
+airflow-seminario/dags/__pycache__/
+data-dbt/logs/
+data-dbt/target/
+data-dbt/dbt_packages/
+data-dbt/.user.yml
+__pycache__/
+*.py[cod]
+
+# Material pessoal de apoio (não versionar)
+docs/guia_apresentacao_pessoal.md

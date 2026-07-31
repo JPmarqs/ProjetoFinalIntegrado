@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: int_acidentes
+    description: Uma linha representativa por acidente, preparada para imagens, ML e análises.
+    columns:
+      - name: cd_bat
+        description: Identificador único do acidente.
+        data_tests:
+          - not_null
+          - unique
+      - name: latitude
+        data_tests:
+          - not_null
+      - name: longitude
+        data_tests:
+          - not_null
+      - name: target_com_vitimas
+        description: 1 para acidentes com vítimas e 0 para acidentes sem vítimas; nulo quando a fonte não classifica.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false

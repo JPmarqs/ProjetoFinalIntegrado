@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Dados brutos carregados no Snowflake a partir do S3.
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'PROJETO_FINAL_IA') }}"
+    schema: RAW
+    tables:
+      - name: sinistros
+        identifier: SINISTROS
+        description: Registros de acidentes da PRF sem transformação analítica.
+
+  - name: ml_outputs
+    description: Saidas gravadas pelo pipeline Python de machine learning.
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'PROJETO_FINAL_IA') }}"
+    schema: ML
+    tables:
+      - name: model_runs
+        identifier: MODEL_RUNS
+      - name: model_predictions
+        identifier: MODEL_PREDICTIONS
+      - name: feature_importance
+        identifier: FEATURE_IMPORTANCE

@@ -1,31 +1,39 @@
-# Projeto Final Integrado - Data/dbt
+# Projeto dbt
 
-Este repositório contém a parte inicial da etapa de dados do projeto, com foco na preparação do ambiente no Snowflake e na estrutura inicial do dbt.
+O dbt transforma a carga textual do Snowflake em modelos tipados, testados e
+adequados ao machine learning e ao Metabase.
 
-## Estrutura atual
+## Linhagem
 
-- `scripts/`  
-  Contém os scripts e instruções usados na preparação do ambiente e na carga inicial dos mocks no Snowflake.
+```mermaid
+flowchart LR
+    R["RAW.SINISTROS"] --> S["STAGING.STG_SINISTROS"]
+    S --> I["INTERMEDIATE.INT_ACIDENTES"]
+    I --> A["MART.MART_ACIDENTES_RESUMO"]
+    I --> D["MART.MART_ACIDENTES_DIARIO"]
+    ML["ML.MODEL_RUNS"] --> M["MART.MART_METRICAS_MODELO"]
+    ML2["ML.MODEL_PREDICTIONS"] --> P["MART.MART_PREDICOES_MODELO"]
+    I --> P
+    ML3["ML.FEATURE_IMPORTANCE"] --> F["MART.MART_FEATURE_IMPORTANCE"]
+```
 
-- `models/staging/`  
-  Contém o modelo `stg_sinistros.sql`, responsável pela camada inicial de staging no dbt.
+## Camadas
 
-- `dbt_project.yml`  
-  Arquivo de configuração principal do projeto dbt.
+- `staging`: padroniza nomes, converte datas/números e remove somente a linha
+  fantasma vazia do arquivo de origem;
+- `intermediate`: consolida uma linha representativa por `CD_BAT` e cria o alvo
+  binário `TARGET_COM_VITIMAS`;
+- `marts`: publica tabelas consumidas pelo dashboard.
 
-- `logs/`  
-  Contém os logs gerados durante a execução e validação do dbt.
+O macro `generate_schema_name` evita que o dbt concatene o schema do perfil ao
+schema configurado no modelo.
 
-## O que esta parte do projeto representa
+## Comandos dentro do container
 
-Esta entrega corresponde à etapa de configuração da base analítica e da estrutura inicial de transformação de dados, incluindo:
+```bash
+dbt debug --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
+dbt build --project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt
+```
 
-- organização inicial do ambiente Snowflake;
-- preparação para carga de dados mock;
-- configuração do projeto dbt;
-- criação do primeiro modelo de staging;
-- registro das evidências de execução.
-
-## Objetivo
-
-Deixar a base pronta para a evolução do pipeline de dados, com novas transformações, validações e integração com as próximas etapas do projeto.
+As credenciais são obtidas exclusivamente por variáveis de ambiente e pela
+chave RSA montada no container. Veja [docs/03_s3_snowflake_dbt.md](../docs/03_s3_snowflake_dbt.md).

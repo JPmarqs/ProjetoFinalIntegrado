@@ -1,5 +1,8 @@
 # Credenciais e configurações locais
 .env
+.env.aws-lab
+keys/*
+!keys/.gitkeep
 
 # Arquivos baixados
 data/*
@@ -13,6 +16,10 @@ logs/*
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Artefatos locais de machine learning
+*.joblib
+*.pkl
 
 # IDE
 .idea/

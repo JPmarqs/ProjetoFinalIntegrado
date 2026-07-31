@@ -1,0 +1,26 @@
+SELECT
+    cd_bat,
+    data_inversa,
+    horario,
+    hora,
+    dia_semana,
+    fim_de_semana,
+    uf,
+    regiao,
+    municipio,
+    rodovia,
+    km,
+    causa_acidente,
+    tipo_acidente,
+    fase_dia,
+    sentido_via,
+    cond_meteorologica,
+    tipo_pista,
+    estrutura_viaria,
+    local_urbanizado,
+    latitude,
+    longitude,
+    classificacao_acidente,
+    target_com_vitimas
+FROM {{ ref('int_acidentes') }}
+

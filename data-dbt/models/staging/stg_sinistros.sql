@@ -1,4 +1,43 @@
-{{ config(materialized='view') }}
-
-SELECT *
-FROM PROJETO_FINAL_IA.RAW.SINISTROS;
+SELECT
+    TRY_TO_NUMBER(NULLIF(cd_bat, '')) AS cd_bat,
+    TRY_TO_NUMBER(NULLIF(id_envolvido, '')) AS id_envolvido,
+    uf_acidente,
+    TRY_TO_NUMBER(NULLIF(rodovia, '')) AS rodovia,
+    TRY_TO_DECIMAL(REPLACE(NULLIF(km, ''), ',', '.'), 12, 3) AS km,
+    municipio,
+    causa_principal,
+    causa_acidente,
+    tipo_acidente,
+    TRY_TO_NUMBER(NULLIF(ordem_tipo_acidente, '')) AS ordem_tipo_acidente,
+    fase_dia,
+    sentido_via,
+    cond_meteorologica,
+    tipo_pista,
+    estrutura_viaria,
+    local_urbanizado,
+    TRY_TO_NUMBER(NULLIF(id_veiculo, '')) AS id_veiculo,
+    tipo_veiculo,
+    marca,
+    TRY_TO_NUMBER(NULLIF(ano_fabricacao, '')) AS ano_fabricacao,
+    tipo_envolvido,
+    estado_fisico,
+    TRY_TO_NUMBER(NULLIF(idade, '')) AS idade,
+    sexo,
+    TRY_TO_NUMBER(NULLIF(qtde_ileso, '')) AS qtde_ileso,
+    TRY_TO_NUMBER(NULLIF(qtde_lesoes_leves, '')) AS qtde_lesoes_leves,
+    TRY_TO_NUMBER(NULLIF(qtde_lesoes_graves, '')) AS qtde_lesoes_graves,
+    TRY_TO_NUMBER(NULLIF(qtde_mortos, '')) AS qtde_mortos,
+    TRY_TO_DECIMAL(REPLACE(NULLIF(latitude, ''), ',', '.'), 12, 8) AS latitude,
+    TRY_TO_DECIMAL(REPLACE(NULLIF(longitude, ''), ',', '.'), 12, 8) AS longitude,
+    sigla_superintendencia,
+    sigla_delegacia,
+    sigla_unidade_operacional,
+    TRY_TO_DATE(NULLIF(data_inversa, '')) AS data_inversa,
+    TRY_TO_TIME(NULLIF(horario, '')) AS horario,
+    dia_semana,
+    classificacao_acidente,
+    source_file,
+    file_last_modified,
+    loaded_at
+FROM {{ source('raw', 'sinistros') }}
+WHERE NULLIF(REGEXP_REPLACE(cd_bat, '[[:space:]]', ''), '') IS NOT NULL
