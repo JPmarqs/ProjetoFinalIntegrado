@@ -1,4 +1,4 @@
-"""Carrega o snapshot CSV do S3 efemero no Snowflake e executa o dbt.
+"""Carrega o snapshot Parquet do S3 efemero no Snowflake e executa o dbt.
 
 As credenciais AWS temporarias existem somente no ambiente do container e no
 stage temporario da sessao Snowflake. Nenhum segredo e enviado ao XCom ou log.
@@ -14,49 +14,11 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag, task
 
+from pipeline_constants import RAW_COLUMNS
+
 
 LOGGER = logging.getLogger(__name__)
 SNOWFLAKE_CONN_ID = "snowflake_default"
-
-RAW_COLUMNS = [
-    "CD_BAT",
-    "ID_ENVOLVIDO",
-    "UF_ACIDENTE",
-    "RODOVIA",
-    "KM",
-    "MUNICIPIO",
-    "CAUSA_PRINCIPAL",
-    "CAUSA_ACIDENTE",
-    "TIPO_ACIDENTE",
-    "ORDEM_TIPO_ACIDENTE",
-    "FASE_DIA",
-    "SENTIDO_VIA",
-    "COND_METEOROLOGICA",
-    "TIPO_PISTA",
-    "ESTRUTURA_VIARIA",
-    "LOCAL_URBANIZADO",
-    "ID_VEICULO",
-    "TIPO_VEICULO",
-    "MARCA",
-    "ANO_FABRICACAO",
-    "TIPO_ENVOLVIDO",
-    "ESTADO_FISICO",
-    "IDADE",
-    "SEXO",
-    "QTDE_ILESO",
-    "QTDE_LESOES_LEVES",
-    "QTDE_LESOES_GRAVES",
-    "QTDE_MORTOS",
-    "LATITUDE",
-    "LONGITUDE",
-    "SIGLA_SUPERINTENDENCIA",
-    "SIGLA_DELEGACIA",
-    "SIGLA_UNIDADE_OPERACIONAL",
-    "DATA_INVERSA",
-    "HORARIO",
-    "DIA_SEMANA",
-    "CLASSIFICACAO_ACIDENTE",
-]
 
 
 def required_env(name: str) -> str:
@@ -75,7 +37,7 @@ def sql_identifier(name: str) -> str:
 
 @dag(
     dag_id="s3_to_snowflake_raw",
-    description="Carrega o CSV do S3 em RAW.SINISTROS e executa o dbt staging",
+    description="Carrega o Parquet do S3 em RAW.SINISTROS e executa o dbt staging",
     start_date=datetime(2026, 1, 1),
     schedule=None,
     catchup=False,
@@ -84,7 +46,7 @@ def sql_identifier(name: str) -> str:
         "retries": 1,
         "retry_delay": timedelta(minutes=1),
     },
-    tags=["s3", "snowflake", "dbt", "raw"],
+    tags=["s3", "parquet", "snowflake", "dbt", "raw"],
 )
 def s3_to_snowflake_raw():
     @task
@@ -93,13 +55,21 @@ def s3_to_snowflake_raw():
 
         bucket = required_env("S3_BUCKET_NAME")
         prefix = os.getenv("S3_PREFIX", "raw/airflow").strip().strip("/")
-        filename = required_env("CSV_FILENAME")
+        filename = required_env("PARQUET_FILENAME")
+        if not filename.lower().endswith(".parquet"):
+            raise ValueError("PARQUET_FILENAME deve possuir a extensao .parquet.")
         object_key = str(PurePosixPath(prefix) / filename) if prefix else filename
 
         response = boto3.client("s3").head_object(Bucket=bucket, Key=object_key)
         size_bytes = int(response["ContentLength"])
+        content_type = response.get("ContentType", "")
         if size_bytes <= 0:
             raise RuntimeError(f"O objeto s3://{bucket}/{object_key} esta vazio.")
+        if content_type != "application/vnd.apache.parquet":
+            raise RuntimeError(
+                "O objeto S3 nao possui o Content-Type esperado para Parquet: "
+                f"{content_type!r}."
+            )
 
         result = {
             "bucket": bucket,
@@ -107,6 +77,7 @@ def s3_to_snowflake_raw():
             "filename": filename,
             "object_key": object_key,
             "size_bytes": size_bytes,
+            "content_type": content_type,
             "etag": response.get("ETag", "").strip('"'),
         }
         LOGGER.info(
@@ -130,7 +101,7 @@ def s3_to_snowflake_raw():
         stage_url = f"s3://{bucket}/{prefix}/" if prefix else f"s3://{bucket}/"
 
         raw_schema = f"{database}.RAW"
-        file_format = f"{raw_schema}.PRF_CSV_FORMAT"
+        file_format = f"{raw_schema}.PRF_PARQUET_FORMAT"
         stage = f"{raw_schema}.AWS_LAB_S3_STAGE"
         next_table = f"{raw_schema}.SINISTROS_NEXT"
         target_table = f"{raw_schema}.SINISTROS"
@@ -143,17 +114,10 @@ def s3_to_snowflake_raw():
             cursor.execute(
                 f"""
                 CREATE OR REPLACE FILE FORMAT {file_format}
-                    TYPE = CSV
-                    COMPRESSION = NONE
-                    FIELD_DELIMITER = ';'
-                    RECORD_DELIMITER = '0x0D'
-                    SKIP_HEADER = 1
-                    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
-                    ENCODING = 'ISO88591'
-                    EMPTY_FIELD_AS_NULL = TRUE
-                    NULL_IF = ('', 'NA', 'N/A')
-                    ERROR_ON_COLUMN_COUNT_MISMATCH = TRUE
-                    SKIP_BLANK_LINES = TRUE
+                    TYPE = PARQUET
+                    USE_LOGICAL_TYPE = TRUE
+                    BINARY_AS_TEXT = FALSE
+                    USE_VECTORIZED_SCANNER = TRUE
                 """
             )
 
@@ -185,25 +149,17 @@ def s3_to_snowflake_raw():
                 """
             )
 
-            target_columns = ", ".join(
-                [*RAW_COLUMNS, "SOURCE_FILE", "FILE_LAST_MODIFIED", "LOADED_AT"]
-            )
-            source_expressions = ",\n".join(
-                [
-                    *(f"s.${index}::VARCHAR" for index in range(1, len(RAW_COLUMNS) + 1)),
-                    "METADATA$FILENAME::VARCHAR",
-                    "METADATA$FILE_LAST_MODIFIED::TIMESTAMP_TZ",
-                    "CURRENT_TIMESTAMP()::TIMESTAMP_TZ",
-                ]
-            )
             cursor.execute(
                 f"""
-                COPY INTO {next_table} ({target_columns})
-                FROM (
-                    SELECT {source_expressions}
-                    FROM @{stage} s
-                )
+                COPY INTO {next_table}
+                FROM @{stage}
                 FILES = (%s)
+                MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
+                INCLUDE_METADATA = (
+                    SOURCE_FILE = METADATA$FILENAME,
+                    FILE_LAST_MODIFIED = METADATA$FILE_LAST_MODIFIED,
+                    LOADED_AT = METADATA$START_SCAN_TIME
+                )
                 FORCE = TRUE
                 ON_ERROR = 'ABORT_STATEMENT'
                 """,

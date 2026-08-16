@@ -9,8 +9,8 @@ acidentes com vítimas e publica os resultados em um dashboard Metabase.
 
 ```mermaid
 flowchart LR
-    G["Google Drive<br/>ZIP + CSV da PRF"] -->|download| A["Airflow"]
-    A -->|CSV bruto| S3R["Amazon S3<br/>raw/"]
+    G["Google Drive<br/>ZIP + CSV da PRF"] -->|download e conversão| A["Airflow"]
+    A -->|Parquet + Snappy| S3R["Amazon S3<br/>raw/"]
     S3R -->|COPY INTO| RAW["Snowflake<br/>RAW"]
     RAW --> DBT["dbt"]
     DBT --> STG["STAGING"] --> INT["INTERMEDIATE"]
@@ -34,7 +34,7 @@ camadas de dados e os resultados do modelo entre sessões.
 | Componente | Responsabilidade |
 |---|---|
 | Airflow | Orquestrar ingestão, carga, imagens, treinamento e dbt |
-| Amazon S3 | Armazenar CSV bruto, imagens e artefatos do modelo |
+| Amazon S3 | Armazenar Parquet da fonte, imagens e artefatos do modelo |
 | Snowflake | Persistir dados RAW, modelos dbt, métricas e previsões |
 | dbt | Tipar, testar, deduplicar e construir tabelas analíticas |
 | Mapbox | Gerar imagens estáticas a partir de latitude e longitude |
@@ -47,8 +47,8 @@ camadas de dados e os resultados do modelo entre sessões.
 |---|---|
 | `snowflake_dbt_diagnostic` | Diagnóstico opcional da autenticação Snowflake/dbt |
 | `aws_lab_s3_bootstrap` | Validar a sessão AWS e criar/proteger o bucket |
-| `google_drive_zip_csv_to_s3` | Baixar o ZIP, extrair e enviar o CSV ao S3 |
-| `s3_to_snowflake_raw` | Carregar RAW e executar os modelos dbt de entrada |
+| `google_drive_zip_csv_to_parquet_s3` | Baixar o ZIP, extrair o CSV, converter e enviar Parquet ao S3 |
+| `s3_to_snowflake_raw` | Carregar o Parquet em RAW e executar os modelos dbt de entrada |
 | `snowflake_mapbox_images_to_s3` | Buscar um lote de imagens e atualizar o manifesto |
 | `train_accident_severity_model` | Treinar, persistir resultados e atualizar os marts |
 

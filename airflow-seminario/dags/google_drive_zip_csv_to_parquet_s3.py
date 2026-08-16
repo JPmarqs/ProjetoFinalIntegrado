@@ -11,6 +11,9 @@ from typing import Any
 import pendulum
 from airflow.sdk import dag, task
 
+from parquet_utils import convert_csv_to_parquet_file
+from pipeline_constants import RAW_COLUMNS
+
 
 # ============================================================================
 # Diretórios compartilhados pelos containers do Airflow
@@ -18,6 +21,7 @@ from airflow.sdk import dag, task
 DATA_DIRECTORY = Path("/opt/airflow/data")
 DOWNLOAD_DIRECTORY = DATA_DIRECTORY / "downloads"
 EXTRACTED_DIRECTORY = DATA_DIRECTORY / "extracted"
+PARQUET_DIRECTORY = DATA_DIRECTORY / "parquet"
 
 
 # ============================================================================
@@ -112,10 +116,10 @@ def validate_csv_file(file_path: Path) -> dict[str, Any]:
 # DAG
 # ============================================================================
 @dag(
-    dag_id="google_drive_zip_csv_to_s3",
+    dag_id="google_drive_zip_csv_to_parquet_s3",
     description=(
         "Baixa um ZIP do Google Drive, extrai o arquivo CSV "
-        "e envia o CSV para o Amazon S3."
+        "e publica uma copia Parquet no Amazon S3."
     ),
     schedule=None,
     start_date=pendulum.datetime(
@@ -131,11 +135,12 @@ def validate_csv_file(file_path: Path) -> dict[str, Any]:
         "google-drive",
         "zip",
         "csv",
+        "parquet",
         "aws",
         "s3",
     ],
 )
-def google_drive_zip_csv_to_s3():
+def google_drive_zip_csv_to_parquet_s3():
 
     @task(
         retries=2,
@@ -406,15 +411,65 @@ def google_drive_zip_csv_to_s3():
         }
 
     @task(
+        retries=1,
+        retry_delay=timedelta(seconds=30),
+    )
+    def convert_csv_to_parquet(
+        csv_information: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Converte o CSV validado para Parquet sem inferir tipos analiticos."""
+        csv_path = Path(csv_information["csv_path"])
+        configured_filename = os.getenv("PARQUET_FILENAME", "").strip()
+        parquet_filename = (
+            Path(configured_filename).name
+            if configured_filename
+            else f"{csv_path.stem}.parquet"
+        )
+
+        if not parquet_filename.lower().endswith(".parquet"):
+            raise ValueError("PARQUET_FILENAME deve possuir a extensao .parquet.")
+
+        parquet_path = PARQUET_DIRECTORY / parquet_filename
+        conversion = convert_csv_to_parquet_file(
+            csv_path=csv_path,
+            parquet_path=parquet_path,
+            encoding=csv_information["csv_detected_encoding"],
+            expected_columns=RAW_COLUMNS,
+        )
+        parquet_sha256 = calculate_sha256(parquet_path)
+        reduction_percent = round(
+            (1 - conversion["parquet_size_bytes"] / csv_information["csv_size_bytes"])
+            * 100,
+            2,
+        )
+
+        print("=" * 70)
+        print("CONVERSAO PARA PARQUET CONCLUIDA")
+        print(f"Arquivo: {parquet_path}")
+        print(f"Linhas: {conversion['parquet_row_count']}")
+        print(f"Colunas: {len(conversion['parquet_columns'])}")
+        print(f"Compressao: {conversion['parquet_compression']}")
+        print(f"Tamanho CSV: {csv_information['csv_size_bytes']} bytes")
+        print(f"Tamanho Parquet: {conversion['parquet_size_bytes']} bytes")
+        print(f"Reducao de tamanho: {reduction_percent}%")
+        print(f"SHA-256 Parquet: {parquet_sha256}")
+        print("=" * 70)
+
+        return {
+            **csv_information,
+            **conversion,
+            "parquet_sha256": parquet_sha256,
+            "size_reduction_percent": reduction_percent,
+        }
+
+    @task(
         retries=2,
         retry_delay=timedelta(minutes=1),
     )
-    def upload_csv_to_s3(
-        csv_information: dict[str, Any],
+    def upload_parquet_to_s3(
+        parquet_information: dict[str, Any],
     ) -> dict[str, Any]:
-        """
-        Envia somente o CSV extraído para o Amazon S3.
-        """
+        """Envia somente o Parquet convertido para o Amazon S3."""
         import boto3
 
         bucket_name = get_required_env("S3_BUCKET_NAME")
@@ -425,18 +480,18 @@ def google_drive_zip_csv_to_s3():
             "",
         ).strip("/")
 
-        csv_path = Path(csv_information["csv_path"])
-        csv_filename = csv_information["csv_filename"]
+        parquet_path = Path(parquet_information["parquet_path"])
+        parquet_filename = parquet_information["parquet_filename"]
 
-        if not csv_path.exists():
+        if not parquet_path.exists():
             raise FileNotFoundError(
-                f"O arquivo CSV não existe: {csv_path}"
+                f"O arquivo Parquet nao existe: {parquet_path}"
             )
 
         object_key = (
-            f"{prefix}/{csv_filename}"
+            f"{prefix}/{parquet_filename}"
             if prefix
-            else csv_filename
+            else parquet_filename
         )
 
         s3_client = boto3.client(
@@ -445,11 +500,16 @@ def google_drive_zip_csv_to_s3():
         )
 
         s3_client.upload_file(
-            Filename=str(csv_path),
+            Filename=str(parquet_path),
             Bucket=bucket_name,
             Key=object_key,
             ExtraArgs={
-                "ContentType": "text/csv",
+                "ContentType": "application/vnd.apache.parquet",
+                "Metadata": {
+                    "source-csv-sha256": parquet_information["csv_sha256"],
+                    "parquet-sha256": parquet_information["parquet_sha256"],
+                    "row-count": str(parquet_information["parquet_row_count"]),
+                },
             },
         )
 
@@ -457,12 +517,12 @@ def google_drive_zip_csv_to_s3():
 
         print("=" * 70)
         print("UPLOAD CONCLUÍDO")
-        print(f"Origem: {csv_path}")
+        print(f"Origem: {parquet_path}")
         print(f"Destino: {s3_uri}")
         print("=" * 70)
 
         return {
-            **csv_information,
+            **parquet_information,
             "bucket_name": bucket_name,
             "object_key": object_key,
             "s3_uri": s3_uri,
@@ -490,34 +550,25 @@ def google_drive_zip_csv_to_s3():
             region_name=region_name,
         )
 
-        response = s3_client.list_objects_v2(
+        response = s3_client.head_object(
             Bucket=bucket_name,
-            Prefix=object_key,
-            MaxKeys=5,
+            Key=object_key,
         )
 
-        uploaded_object = next(
-            (
-                item
-                for item in response.get("Contents", [])
-                if item["Key"] == object_key
-            ),
-            None,
-        )
-
-        if uploaded_object is None:
-            raise RuntimeError(
-                f"O objeto não foi localizado após o upload: "
-                f"s3://{bucket_name}/{object_key}"
-            )
-
-        uploaded_size = uploaded_object["Size"]
-        local_size = upload_information["csv_size_bytes"]
+        uploaded_size = int(response["ContentLength"])
+        local_size = upload_information["parquet_size_bytes"]
+        content_type = response.get("ContentType", "")
 
         if uploaded_size != local_size:
             raise RuntimeError(
                 f"O tamanho do objeto no S3 ({uploaded_size} bytes) "
                 f"é diferente do tamanho local ({local_size} bytes)."
+            )
+
+        if content_type != "application/vnd.apache.parquet":
+            raise RuntimeError(
+                "O Content-Type do objeto nao corresponde a Parquet: "
+                f"{content_type!r}."
             )
 
         print("=" * 70)
@@ -531,6 +582,7 @@ def google_drive_zip_csv_to_s3():
             **upload_information,
             "validated": True,
             "uploaded_size_bytes": uploaded_size,
+            "uploaded_content_type": content_type,
         }
 
     @task
@@ -553,9 +605,14 @@ def google_drive_zip_csv_to_s3():
             "Codificação detectada: "
             f"{result['csv_detected_encoding']}"
         )
+        print(f"Parquet gerado: {result['parquet_filename']}")
+        print(f"Linhas no Parquet: {result['parquet_row_count']}")
         print(f"Destino: {result['s3_uri']}")
-        print(f"Tamanho: {result['csv_size_bytes']} bytes")
-        print(f"SHA-256: {result['csv_sha256']}")
+        print(f"Tamanho CSV: {result['csv_size_bytes']} bytes")
+        print(f"Tamanho Parquet: {result['parquet_size_bytes']} bytes")
+        print(f"Reducao: {result['size_reduction_percent']}%")
+        print(f"SHA-256 CSV: {result['csv_sha256']}")
+        print(f"SHA-256 Parquet: {result['parquet_sha256']}")
         print(f"Upload validado: {result['validated']}")
         print("=" * 70)
 
@@ -565,12 +622,16 @@ def google_drive_zip_csv_to_s3():
         downloaded_zip
     )
 
-    uploaded_csv = upload_csv_to_s3(
+    converted_parquet = convert_csv_to_parquet(
         extracted_csv
     )
 
+    uploaded_parquet = upload_parquet_to_s3(
+        converted_parquet
+    )
+
     validated_upload = validate_s3_upload(
-        uploaded_csv
+        uploaded_parquet
     )
 
     display_result(
@@ -578,4 +639,4 @@ def google_drive_zip_csv_to_s3():
     )
 
 
-google_drive_zip_csv_to_s3()
+google_drive_zip_csv_to_parquet_s3()

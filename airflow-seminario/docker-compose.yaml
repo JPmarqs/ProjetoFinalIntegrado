@@ -87,6 +87,9 @@ x-airflow-common:
 
     GOOGLE_DRIVE_FILE_ID: ${GOOGLE_DRIVE_FILE_ID}
     SOURCE_FILENAME: ${SOURCE_FILENAME:-acidentes2026_todas_causas_tipos.zip}
+    CSV_FILENAME: ${CSV_FILENAME:-acidentes2026_todas_causas_tipos.csv}
+    PARQUET_FILENAME: ${PARQUET_FILENAME:-acidentes2026_todas_causas_tipos.parquet}
+    MAX_CSV_SIZE_MB: ${MAX_CSV_SIZE_MB:-200}
 
     # Snowflake e dbt
     SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT:-MINHA_ORGANIZACAO-MINHA_CONTA}

@@ -54,11 +54,23 @@ O arquivo precisa estar compartilhado para leitura pelo ID configurado. Confirme
 que `SOURCE_FILENAME` termina em `.zip` e que `CSV_FILENAME` corresponde ao
 arquivo interno.
 
-## Snowflake reclama do delimitador ou cria uma linha extra
+## A conversão para Parquet rejeita o cabeçalho
 
-O arquivo usado possui `;`, encoding ISO-8859-1 e registros terminados por CR.
-O file format usa `RECORD_DELIMITER='0x0D'`. O staging remove a linha final que
-contém somente whitespace. Não troque por `AUTO` sem inspecionar outra fonte.
+O conversor exige exatamente as 37 colunas do contrato RAW e na ordem esperada.
+Confira se `CSV_FILENAME` aponta para o arquivo de envolvidos usado pelo
+pipeline. Outros CSVs da PRF podem possuir estrutura diferente.
+
+## O arquivo Parquet não é encontrado no S3
+
+Confirme que `PARQUET_FILENAME` termina em `.parquet` e possui o mesmo valor nos
+containers que executam as duas DAGs. Depois, confira a URI publicada nos logs
+de `google_drive_zip_csv_to_parquet_s3`.
+
+## Snowflake reclama do formato Parquet
+
+Confirme que a imagem Airflow foi reconstruída depois da inclusão do `pyarrow`,
+que o objeto possui Content-Type `application/vnd.apache.parquet` e que o file
+format `RAW.PRF_PARQUET_FORMAT` está configurado com `TYPE=PARQUET`.
 
 ## Teste `not_null` falha em `ID_ENVOLVIDO`
 

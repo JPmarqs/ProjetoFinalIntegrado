@@ -8,6 +8,7 @@ configuração local.
 - `docker-compose.yaml`: Airflow 3, PostgreSQL, Redis e Metabase;
 - `Dockerfile` e `requirements.txt`: imagem Airflow com providers, dbt e ML;
 - `dags/`: fluxos operacionais e diagnóstico;
+- `dags/parquet_utils.py`: conversão incremental e validação CSV → Parquet;
 - `scripts/generate_snowflake_key_pair.ps1`: geração segura do par RSA;
 - `.env.example`: configuração permanente sem segredos;
 - `.env.aws-lab.example`: modelo para as três credenciais AWS temporárias.

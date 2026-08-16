@@ -37,7 +37,7 @@ Ao final devem existir os schemas:
 
 | Schema | Finalidade |
 |---|---|
-| `RAW` | Snapshot textual do CSV |
+| `RAW` | Snapshot textual da fonte carregado do Parquet |
 | `STAGING` | Tipagem e padronização |
 | `INTERMEDIATE` | Uma linha por acidente e features de negócio |
 | `ML` | Manifesto, execuções, previsões e importâncias |
@@ -83,4 +83,3 @@ Acione `snowflake_dbt_diagnostic`. Ela executa:
 
 A DAG é apenas diagnóstica e não altera dados. As credenciais não ficam em
 `profiles.yml`: o dbt lê as variáveis do ambiente.
-

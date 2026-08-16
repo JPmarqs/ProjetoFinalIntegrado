@@ -29,7 +29,8 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    CSV["CSV PRF<br/>grão: envolvido"] --> RAW["RAW<br/>texto fiel à fonte"]
+    CSV["CSV PRF<br/>grão: envolvido"] --> PQ["Parquet no S3<br/>37 colunas texto"]
+    PQ --> RAW["RAW<br/>contrato textual da fonte"]
     RAW --> STG["STAGING<br/>tipos e limpeza mínima"]
     STG --> INT["INTERMEDIATE<br/>grão: acidente"]
     INT --> IMG["Imagens por coordenada"]
@@ -68,4 +69,3 @@ imagens disponíveis no bucket novo.
 - Python/scikit-learn concentra preprocessing e treinamento.
 - S3 armazena objetos grandes; Snowflake armazena referências e resultados.
 - Metabase consulta apenas tabelas de consumo, sem duplicar regras de negócio.
-

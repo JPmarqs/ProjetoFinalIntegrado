@@ -28,7 +28,7 @@ docker compose ps
 
 ```mermaid
 flowchart TD
-    A["1. aws_lab_s3_bootstrap"] --> B["2. google_drive_zip_csv_to_s3"]
+    A["1. aws_lab_s3_bootstrap"] --> B["2. google_drive_zip_csv_to_parquet_s3"]
     B --> C["3. s3_to_snowflake_raw"]
     C --> D["4. snowflake_mapbox_images_to_s3"]
     D --> E["5. train_accident_severity_model"]
@@ -40,7 +40,7 @@ Validações esperadas:
 | Etapa | Evidência mínima |
 |---|---|
 | Bootstrap | bucket acessível e privado |
-| Drive → S3 | URI, tamanho e SHA-256 nos logs |
+| Drive → S3 | URI, linhas, schema, tamanhos e hashes CSV/Parquet nos logs |
 | S3 → Snowflake/dbt | RAW preenchido e testes staging verdes |
 | Imagens | objetos PNG e linhas na geração atual do manifesto |
 | ML | novo `RUN_ID`, artefatos no S3 e previsões no Snowflake |
@@ -57,7 +57,7 @@ processa o próximo lote ainda não registrado para o bucket atual.
 3. Execute `docker compose up -d --force-recreate`.
 4. Recomece em `aws_lab_s3_bootstrap`.
 
-O CSV, as imagens e os artefatos precisam ser reconstruídos porque o S3 é
+O Parquet, as imagens e os artefatos precisam ser reconstruídos porque o S3 é
 efêmero. As tabelas Snowflake podem ser substituídas por um novo snapshot.
 
 ## Encerrar o ambiente local
@@ -68,4 +68,3 @@ docker compose down
 
 Não use `docker compose down -v` se quiser preservar o histórico local do
 Airflow e a configuração do Metabase.
-
