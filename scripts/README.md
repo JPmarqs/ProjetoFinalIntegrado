@@ -125,11 +125,6 @@ mais irregular que uma rodovia aberta).
 
 - `_ler_csv_com_fallback_encoding`: tenta `utf-8` e `latin-1`, com separador
   `,` ou `;`, e valida a estrutura mínima antes de aceitar o arquivo.
-  ⚠️ **Atenção**: para o `datatran2026.csv` (dados brutos da PRF) o
-  encoding correto é `utf-8-sig` (UTF-8 com BOM). Este script espera como
-  entrada o **CSV de locais já preparado** (`id, lat, lon`), tipicamente
-  gerado por um script auxiliar de amostragem (`gerar_amostra_locais.py`),
-  não o CSV bruto da PRF diretamente.
 - `_padronizar_colunas_local`: normaliza nomes de colunas (`latitude/longitude`
   → `lat/lon`) e corrige vírgula decimal, se presente.
 - Amostragem reprodutível: os locais únicos são embaralhados uma única vez
