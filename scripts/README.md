@@ -60,7 +60,7 @@ por cor.
 
 Informações estruturais do arquivo: formato, largura/altura, modo de cor e
 tamanho em bytes. Serve como trilha de auditoria/rastreabilidade
-(dado bruto → dado tratado, exigida na seção 5.3 do escopo).
+(dado bruto → dado tratado).
 
 ### Etapa 3 — Extração de atributos visuais
 
