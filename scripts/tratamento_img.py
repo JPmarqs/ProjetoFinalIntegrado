@@ -22,7 +22,7 @@ from skimage import color, feature
 # CONFIGURAÇÕES GERAIS
 # ============================================================
 
-MAPBOX_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "pk.eyJ1IjoiYW5hYnBhZXNzIiwiYSI6ImNtcm85bXNybzA3NTgzNm9sb2k0d2s1amYifQ.mBz5IYviUCsXroqcjTajDg")
+MAPBOX_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "")
 MAPBOX_STYLE = "mapbox/streets-v12"
 IMG_WIDTH = 400
 IMG_HEIGHT = 300
