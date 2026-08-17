@@ -114,21 +114,12 @@ mais irregular que uma rodovia aberta).
 
 ### Etapa 4 — Derivação de atributos de risco (`derivar_atributos_risco`)
 
-Aplica regras de negócio (limiares definidos em "LIMIARES DE NEGÓCIO", no
-topo do script) sobre os atributos brutos para gerar variáveis
-interpretáveis, prontas para uso analítico e como candidatas a atributos do
-modelo de ML:
-
 | Atributo derivado | Regra |
 |---|---|
 | `possui_cruzamento` | `line_intersection_count >= CRUZAMENTO_MIN_INTERSECOES` |
 | `curva_via` | `line_angle_std >= CURVA_STD_ANGLE_THRESHOLD_DEG` |
 | `tipo_via` | classificação categórica: `urbana_com_edificacoes` / `urbana_com_cruzamento` / `aberta_rural_arborizada` / `via_simples`, por prioridade de regras |
 | `low_light_flag` | `brightness_mean < LOW_LIGHT_BRIGHTNESS_THRESHOLD` |
-
-Esses limiares foram calibrados empiricamente e podem (devem) ser ajustados
-e justificados no relatório como parte da avaliação qualitativa (seção 5.4
-do escopo).
 
 ## 4. Leitura e amostragem do CSV de entrada
 
@@ -169,7 +160,7 @@ python tratamento_img.py caminho/para/locais_teste.csv
 ```
 
 Se nenhum argumento for informado, o script usa `datatran2026.csv` como
-padrão (ver observação sobre encoding acima).
+padrão.
 
 ## 7. Parâmetros configuráveis (topo do script)
 
