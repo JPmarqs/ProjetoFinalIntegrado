@@ -37,7 +37,7 @@ def sql_identifier(name: str) -> str:
 
 @dag(
     dag_id="s3_to_snowflake_raw",
-    description="Carrega o Parquet do S3 em RAW.SINISTROS e executa o dbt staging",
+    description="Carrega o Parquet no RAW e constroi os modelos de entrada do dbt",
     start_date=datetime(2026, 1, 1),
     schedule=None,
     catchup=False,
@@ -195,10 +195,10 @@ def s3_to_snowflake_raw():
     source = validate_s3_source()
     raw_load = load_raw_snapshot(source)
 
-    run_dbt_staging = BashOperator(
-        task_id="run_dbt_staging",
+    run_dbt_input_models = BashOperator(
+        task_id="run_dbt_input_models",
         bash_command=(
-            "dbt build --select staging "
+            "dbt build --select +int_acidentes "
             "--project-dir /opt/airflow/dbt "
             "--profiles-dir /opt/airflow/dbt "
             "--target dev"
@@ -221,7 +221,7 @@ def s3_to_snowflake_raw():
         do_xcom_push=True,
     )
 
-    source >> raw_load >> run_dbt_staging >> validate_staging
+    source >> raw_load >> run_dbt_input_models >> validate_staging
 
 
 s3_to_snowflake_raw()

@@ -34,7 +34,8 @@ A DAG `s3_to_snowflake_raw` valida o objeto e executa uma carga snapshot:
 4. valida se existem linhas;
 5. publica o snapshot como `RAW.SINISTROS` por clone;
 6. remove o stage temporário mesmo quando ocorre falha;
-7. executa `dbt build --select staging`;
+7. executa `dbt build --select +int_acidentes`, construindo staging e o modelo
+   intermediario exigido pelas DAGs de imagens e treinamento;
 8. valida a view `STAGING.STG_SINISTROS`.
 
 O snapshot Parquet não materializa a quebra de linha vazia encontrada no final

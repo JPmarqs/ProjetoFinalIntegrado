@@ -15,6 +15,9 @@ sources:
     database: "{{ env_var('SNOWFLAKE_DATABASE', 'PROJETO_FINAL_IA') }}"
     schema: ML
     tables:
+      - name: image_manifest
+        identifier: IMAGE_MANIFEST
+        description: Metadados das imagens Mapbox publicadas no S3 por coordenada.
       - name: model_runs
         identifier: MODEL_RUNS
       - name: model_predictions

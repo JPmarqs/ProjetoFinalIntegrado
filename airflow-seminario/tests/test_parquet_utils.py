@@ -15,6 +15,46 @@ from pipeline_constants import RAW_COLUMNS
 
 
 class ParquetConversionTest(unittest.TestCase):
+    PRF_SOURCE_HEADER = [
+        "id",
+        "pesid",
+        "data_inversa",
+        "dia_semana",
+        "horario",
+        "uf",
+        "br",
+        "km",
+        "municipio",
+        "causa_principal",
+        "causa_acidente",
+        "ordem_tipo_acidente",
+        "tipo_acidente",
+        "classificacao_acidente",
+        "fase_dia",
+        "sentido_via",
+        "condicao_metereologica",
+        "tipo_pista",
+        "tracado_via",
+        "uso_solo",
+        "id_veiculo",
+        "tipo_veiculo",
+        "marca",
+        "ano_fabricacao_veiculo",
+        "tipo_envolvido",
+        "estado_fisico",
+        "idade",
+        "sexo",
+        "ilesos",
+        "feridos_leves",
+        "feridos_graves",
+        "mortos",
+        "latitude",
+        "longitude",
+        "regional",
+        "delegacia",
+        "uop",
+    ]
+
     def test_converts_as_strings_and_preserves_expected_nulls(self) -> None:
         import pyarrow.parquet as parquet
 
@@ -85,6 +125,48 @@ class ParquetConversionTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "nao corresponde ao contrato RAW"):
             validate_csv_header(invalid_columns, RAW_COLUMNS)
+
+    def test_converts_prf_header_aliases_and_reorders_by_column_name(self) -> None:
+        import pyarrow.parquet as parquet
+
+        source_values = {
+            column: f"fonte-{index}"
+            for index, column in enumerate(self.PRF_SOURCE_HEADER)
+        }
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            csv_path = directory / "prf.csv"
+            parquet_path = directory / "prf.parquet"
+
+            with csv_path.open("w", encoding="utf-8", newline="") as destination:
+                writer = csv.writer(destination, delimiter=";", quotechar='"')
+                writer.writerow(self.PRF_SOURCE_HEADER)
+                writer.writerow(
+                    [source_values[column] for column in self.PRF_SOURCE_HEADER]
+                )
+
+            result = convert_csv_to_parquet_file(
+                csv_path,
+                parquet_path,
+                "utf-8",
+                RAW_COLUMNS,
+            )
+            table = parquet.read_table(parquet_path)
+
+        self.assertEqual(result["parquet_row_count"], 1)
+        self.assertEqual(table.schema.names, RAW_COLUMNS)
+        self.assertEqual(table.column("CD_BAT").to_pylist(), ["fonte-0"])
+        self.assertEqual(table.column("DATA_INVERSA").to_pylist(), ["fonte-2"])
+        self.assertEqual(table.column("UF_ACIDENTE").to_pylist(), ["fonte-5"])
+        self.assertEqual(
+            table.column("COND_METEOROLOGICA").to_pylist(),
+            ["fonte-16"],
+        )
+        self.assertEqual(
+            table.column("SIGLA_UNIDADE_OPERACIONAL").to_pylist(),
+            ["fonte-36"],
+        )
 
 
 if __name__ == "__main__":

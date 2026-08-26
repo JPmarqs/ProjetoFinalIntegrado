@@ -32,7 +32,7 @@ SELECT
     sigla_superintendencia,
     sigla_delegacia,
     sigla_unidade_operacional,
-    TRY_TO_DATE(NULLIF(data_inversa, '')) AS data_inversa,
+    TRY_TO_DATE(NULLIF(data_inversa, ''), 'DD/MM/YYYY') AS data_inversa,
     TRY_TO_TIME(NULLIF(horario, '')) AS horario,
     dia_semana,
     classificacao_acidente,

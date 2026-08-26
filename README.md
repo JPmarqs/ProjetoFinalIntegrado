@@ -48,7 +48,7 @@ camadas de dados e os resultados do modelo entre sessões.
 | `snowflake_dbt_diagnostic` | Diagnóstico opcional da autenticação Snowflake/dbt |
 | `aws_lab_s3_bootstrap` | Validar a sessão AWS e criar/proteger o bucket |
 | `google_drive_zip_csv_to_parquet_s3` | Baixar o ZIP, extrair o CSV, converter e enviar Parquet ao S3 |
-| `s3_to_snowflake_raw` | Carregar o Parquet em RAW e executar os modelos dbt de entrada |
+| `s3_to_snowflake_raw` | Carregar o Parquet em RAW e construir STAGING/INT_ACIDENTES |
 | `snowflake_mapbox_images_to_s3` | Buscar um lote de imagens e atualizar o manifesto |
 | `train_accident_severity_model` | Treinar, persistir resultados e atualizar os marts |
 

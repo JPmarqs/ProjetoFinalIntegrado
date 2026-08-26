@@ -10,6 +10,23 @@ from typing import Any, Sequence
 
 
 CSV_HEADER_ALIASES = {
+    # Nomes publicados pela PRF no arquivo detalhado por pessoa/veiculo.
+    "ID": "CD_BAT",
+    "PESID": "ID_ENVOLVIDO",
+    "UF": "UF_ACIDENTE",
+    "BR": "RODOVIA",
+    "CONDICAO_METEREOLOGICA": "COND_METEOROLOGICA",
+    "TRACADO_VIA": "ESTRUTURA_VIARIA",
+    "USO_SOLO": "LOCAL_URBANIZADO",
+    "ANO_FABRICACAO_VEICULO": "ANO_FABRICACAO",
+    "ILESOS": "QTDE_ILESO",
+    "FERIDOS_LEVES": "QTDE_LESOES_LEVES",
+    "FERIDOS_GRAVES": "QTDE_LESOES_GRAVES",
+    "MORTOS": "QTDE_MORTOS",
+    "REGIONAL": "SIGLA_SUPERINTENDENCIA",
+    "DELEGACIA": "SIGLA_DELEGACIA",
+    "UOP": "SIGLA_UNIDADE_OPERACIONAL",
+    # Nomes encontrados em versoes anteriores do mesmo conjunto de dados.
     "SIGLA_DA_SUPERINTENDENCIA": "SIGLA_SUPERINTENDENCIA",
     "SIGLA_DA_DELEGACIA": "SIGLA_DELEGACIA",
     "SIGLA_DA_UNIDADE_OPERACIONAL": "SIGLA_UNIDADE_OPERACIONAL",
@@ -54,12 +71,15 @@ def validate_csv_header(
     if len(set(normalized_actual)) != len(normalized_actual):
         raise ValueError(f"O CSV possui colunas duplicadas: {list(actual_columns)}")
 
-    if normalized_actual != normalized_expected:
+    if set(normalized_actual) != set(normalized_expected):
+        missing_columns = sorted(set(normalized_expected) - set(normalized_actual))
+        unexpected_columns = sorted(set(normalized_actual) - set(normalized_expected))
         raise ValueError(
             "O cabecalho do CSV nao corresponde ao contrato RAW. "
             f"Esperado: {list(expected_columns)}. "
             f"Recebido: {list(actual_columns)}. "
-            f"Recebido apos normalizacao: {normalized_actual}."
+            f"Recebido apos normalizacao: {normalized_actual}. "
+            f"Ausentes: {missing_columns}. Inesperadas: {unexpected_columns}."
         )
 
 
@@ -78,7 +98,11 @@ def convert_csv_to_parquet_file(
     validate_csv_header(actual_columns, expected_columns)
 
     canonical_columns = list(expected_columns)
+    source_columns = [normalize_csv_column_name(column) for column in actual_columns]
     column_types = {column: pa.string() for column in canonical_columns}
+    canonical_schema = pa.schema(
+        [pa.field(column, pa.string()) for column in canonical_columns]
+    )
     temporary_path = parquet_path.with_suffix(f"{parquet_path.suffix}.tmp")
 
     parquet_path.parent.mkdir(parents=True, exist_ok=True)
@@ -87,7 +111,7 @@ def convert_csv_to_parquet_file(
     reader = arrow_csv.open_csv(
         csv_path,
         read_options=arrow_csv.ReadOptions(
-            column_names=canonical_columns,
+            column_names=source_columns,
             skip_rows=1,
             encoding=encoding,
             block_size=8 * 1024 * 1024,
@@ -112,13 +136,13 @@ def convert_csv_to_parquet_file(
     try:
         with parquet.ParquetWriter(
             temporary_path,
-            reader.schema,
+            canonical_schema,
             compression="snappy",
             use_dictionary=True,
             write_statistics=True,
         ) as writer:
             for batch in reader:
-                writer.write_batch(batch)
+                writer.write_batch(batch.select(canonical_columns))
                 row_count += batch.num_rows
 
         if row_count <= 0:

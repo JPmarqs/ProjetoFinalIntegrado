@@ -41,10 +41,10 @@ Validações esperadas:
 |---|---|
 | Bootstrap | bucket acessível e privado |
 | Drive → S3 | URI, linhas, schema, tamanhos e hashes CSV/Parquet nos logs |
-| S3 → Snowflake/dbt | RAW preenchido e testes staging verdes |
+| S3 → Snowflake/dbt | RAW, STAGING e `INT_ACIDENTES` preenchidos e testados |
 | Imagens | objetos PNG e linhas na geração atual do manifesto |
 | ML | novo `RUN_ID`, artefatos no S3 e previsões no Snowflake |
-| Marts | `dbt build --select marts` concluído sem falhas |
+| Marts | `dbt build --select +marts` concluído sem falhas |
 | Metabase | perguntas e dashboard consultando a execução mais recente |
 
 Para ampliar as imagens, repita a quarta DAG antes do treinamento. Cada execução

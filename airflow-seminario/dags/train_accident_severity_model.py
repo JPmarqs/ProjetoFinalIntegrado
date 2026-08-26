@@ -32,7 +32,7 @@ def train_accident_severity_model():
     build_marts = BashOperator(
         task_id="build_analytics_marts",
         bash_command=(
-            "dbt build --select marts "
+            "dbt build --select +marts "
             "--project-dir /opt/airflow/dbt "
             "--profiles-dir /opt/airflow/dbt --target dev"
         ),
