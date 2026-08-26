@@ -1,0 +1,50 @@
+-- Consultas opcionais para novas perguntas do Metabase.
+-- A conexao do Metabase define o database; os SQLs qualificam apenas o schema.
+
+-- 1. KPI de cobertura das imagens.
+SELECT
+    COUNT(*) AS TOTAL_ACIDENTES,
+    COUNT_IF(POSSUI_IMAGEM = 1) AS ACIDENTES_COM_IMAGEM,
+    ROUND(
+        100.0 * COUNT_IF(POSSUI_IMAGEM = 1) / NULLIF(COUNT(*), 0),
+        2
+    ) AS PERCENTUAL_COM_IMAGEM
+FROM MART.FCT_SINISTROS;
+
+-- 2. Ranking dos locais com mais acidentes classificados.
+SELECT
+    d.UF,
+    d.MUNICIPIO,
+    d.RODOVIA,
+    d.KM,
+    COUNT(*) AS TOTAL_ACIDENTES,
+    COUNT_IF(f.TARGET_COM_VITIMAS = 1) AS ACIDENTES_COM_VITIMAS,
+    COUNT_IF(f.TARGET_COM_VITIMAS = 0) AS ACIDENTES_SEM_VITIMAS
+FROM MART.FCT_SINISTROS f
+INNER JOIN MART.DIM_LOCAL d ON d.LOCAL_KEY = f.LOCAL_KEY
+GROUP BY d.UF, d.MUNICIPIO, d.RODOVIA, d.KM
+ORDER BY TOTAL_ACIDENTES DESC
+LIMIT 20;
+
+-- 3. Mapa agregado por coordenada, com disponibilidade da imagem.
+SELECT
+    d.LOCAL_KEY,
+    d.LATITUDE,
+    d.LONGITUDE,
+    d.UF,
+    d.MUNICIPIO,
+    d.POSSUI_IMAGEM,
+    d.S3_OBJECT_KEY,
+    COUNT(*) AS TOTAL_ACIDENTES,
+    COUNT_IF(f.TARGET_COM_VITIMAS = 1) AS ACIDENTES_COM_VITIMAS
+FROM MART.DIM_LOCAL d
+INNER JOIN MART.FCT_SINISTROS f ON f.LOCAL_KEY = d.LOCAL_KEY
+GROUP BY
+    d.LOCAL_KEY,
+    d.LATITUDE,
+    d.LONGITUDE,
+    d.UF,
+    d.MUNICIPIO,
+    d.POSSUI_IMAGEM,
+    d.S3_OBJECT_KEY
+ORDER BY TOTAL_ACIDENTES DESC;

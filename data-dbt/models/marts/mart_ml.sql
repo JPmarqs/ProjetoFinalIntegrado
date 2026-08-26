@@ -1,0 +1,28 @@
+SELECT
+    cd_bat,
+    local_key,
+    data_inversa,
+    horario,
+    hora,
+    dia_semana,
+    uf,
+    rodovia,
+    km,
+    municipio,
+    causa_acidente,
+    tipo_acidente,
+    fase_dia,
+    sentido_via,
+    cond_meteorologica,
+    tipo_pista,
+    estrutura_viaria,
+    local_urbanizado,
+    fim_de_semana,
+    regiao,
+    possui_imagem,
+    storage_generation,
+    s3_bucket,
+    s3_object_key,
+    target_com_vitimas
+FROM {{ ref('fct_sinistros') }}
+WHERE target_com_vitimas IS NOT NULL
